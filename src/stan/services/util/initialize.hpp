@@ -114,6 +114,12 @@ std::vector<double> initialize(Model& model,
                   " at the initial value.");
       logger.info(e.what());
       continue;
+    } catch (torsten::mpi::slave_dismiss& e) {
+      if (msg.str().length() > 0)
+        logger.info(msg);
+      logger.info(e.what());
+      throw std::runtime_error("");
+      throw;
     } catch (std::exception& e) {
       if (msg.str().length() > 0)
         logger.info(msg);
@@ -141,6 +147,11 @@ std::vector<double> initialize(Model& model,
                   " at the initial value.");
       logger.info(e.what());
       continue;
+    } catch (torsten::mpi::slave_dismiss& e) {
+      if (msg.str().length() > 0)
+        logger.info(msg);
+      logger.info(e.what());
+      throw std::runtime_error("");
     } catch (std::exception& e) {
       if (msg.str().length() > 0)
         logger.info(msg);
