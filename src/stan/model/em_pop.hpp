@@ -69,17 +69,12 @@ class em_pop {
     Eigen::MatrixXd& ref_sigma = *p_sigma;
 
     theta_work /= n_sample;
-    if (i == 0) {
-      mu_all(0) = theta_work.sum();
-      sigma_all(0) = theta_work.squaredNorm();
-    } else {
-      mu_all(0) *= gamma(i) * theta_work.sum();
-      sigma_all(0) *= gamma(i) * theta_work.squaredNorm();
-    }
+    mu_all(0) += gamma(i) * theta_work.sum();
+    sigma_all(0) += gamma(i) * theta_work.squaredNorm();
 
     ref_mu = mu_all/n_subj;
-    ref_sigma = (sigma_all - n_subj * ref_mu * ref_mu.transpose())/n_subj;
-
+    // ref_sigma(0) = sqrt(sigma_all(0)/n_subj - ref_mu(0) * ref_mu.transpose());
+    ref_sigma(0) = sqrt(sigma_all(0)/n_subj - ref_mu(0) * ref_mu(0));
 
     // prepare next iteration
     mu_all *= (1.0 - gamma(i + 1));
