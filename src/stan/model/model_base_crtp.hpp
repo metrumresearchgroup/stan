@@ -85,6 +85,10 @@ class model_base_crtp : public stan::model::model_base {
    */
   virtual ~model_base_crtp() {}
 
+  inline void add_sample(Eigen::VectorXd const& q) override {
+    static_cast<M*>(this)->add_sample(q);
+  }
+
   inline double log_prob(Eigen::VectorXd& theta,
                          std::ostream* msgs) const override {
     return static_cast<const M*>(this)->template log_prob<false, false, double>(

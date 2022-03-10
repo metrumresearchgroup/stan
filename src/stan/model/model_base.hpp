@@ -4,6 +4,7 @@
 #include <stan/io/var_context.hpp>
 #include <stan/math/rev/core.hpp>
 #include <stan/model/prob_grad.hpp>
+#include <stan/model/em_pop.hpp>
 #include <boost/random/additive_combine.hpp>
 #include <ostream>
 #include <string>
@@ -30,7 +31,8 @@ namespace model {
  * generator is use the curiously recursive template base class defined
  * in the extension `stan::model::model_base_crtp`.
  */
-class model_base : public prob_grad {
+class model_base : public prob_grad,
+                   public em_pop {
  public:
   /**
    * Construct a model with the specified number of real valued
@@ -45,6 +47,8 @@ class model_base : public prob_grad {
    * Destructor.  This class has a no-op destructor.
    */
   virtual ~model_base() {}
+
+  virtual void add_sample(Eigen::VectorXd const& q) = 0;
 
   /**
    * Return the name of the model.
