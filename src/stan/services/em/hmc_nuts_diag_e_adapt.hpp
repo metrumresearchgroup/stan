@@ -1,5 +1,5 @@
-#ifndef STAN_SERVICES_EM_HMC_NUTS_DENSE_E_ADAPT_HPP
-#define STAN_SERVICES_EM_HMC_NUTS_DENSE_E_ADAPT_HPP
+#ifndef STAN_SERVICES_EM_HMC_NUTS_DIAG_E_ADAPT_HPP
+#define STAN_SERVICES_EM_HMC_NUTS_DIAG_E_ADAPT_HPP
 
 #include <stan/math/prim.hpp>
 #include <stan/callbacks/interrupt.hpp>
@@ -8,7 +8,7 @@
 #include <stan/io/var_context.hpp>
 #include <stan/mcmc/fixed_param_sampler.hpp>
 #include <stan/services/error_codes.hpp>
-#include <stan/mcmc/hmc/nuts/adapt_dense_e_nuts.hpp>
+#include <stan/mcmc/hmc/nuts/adapt_diag_e_nuts.hpp>
 #include <stan/services/em/run_em_sampler.hpp>
 #include <stan/services/util/create_rng.hpp>
 #include <stan/services/util/initialize.hpp>
@@ -20,13 +20,13 @@ namespace services {
 namespace em {
 
 /**
- * Runs HMC with NUTS with adaptation using dense Euclidean metric
+ * Runs HMC with NUTS with adaptation using diag Euclidean metric
  * with a pre-specified Euclidean metric.
  *
  * @tparam Model Model class
  * @param[in] model Input model to test (with data already instantiated)
  * @param[in] init var context for initialization
- * @param[in] init_inv_metric var context exposing an initial dense
+ * @param[in] init_inv_metric var context exposing an initial diag
               inverse Euclidean metric (must be positive definite)
  * @param[in] random_seed random seed for the random number generator
  * @param[in] chain chain id to advance the pseudo random number generator
@@ -54,7 +54,7 @@ namespace em {
  * @return error_codes::OK if successful
  */
 template <class Model>
-int hmc_nuts_dense_e_adapt(Model& model, const stan::io::var_context& init,
+int hmc_nuts_diag_e_adapt(Model& model, const stan::io::var_context& init,
     const stan::io::var_context& init_inv_metric, unsigned int random_seed,
     unsigned int chain, double init_radius, int num_warmup, int num_samples,
     int num_thin, bool save_warmup, int refresh, double stepsize,
@@ -70,14 +70,14 @@ int hmc_nuts_dense_e_adapt(Model& model, const stan::io::var_context& init,
 
   Eigen::MatrixXd inv_metric;
   try {
-    inv_metric = util::read_dense_inv_metric(init_inv_metric,
+    inv_metric = util::read_diag_inv_metric(init_inv_metric,
                                              model.num_params_r(), logger);
-    util::validate_dense_inv_metric(inv_metric, logger);
+    util::validate_diag_inv_metric(inv_metric, logger);
   } catch (const std::domain_error& e) {
     return error_codes::CONFIG;
   }
 
-  stan::mcmc::adapt_dense_e_nuts<Model, boost::ecuyer1988> sampler(model, rng);
+  stan::mcmc::adapt_diag_e_nuts<Model, boost::ecuyer1988> sampler(model, rng);
 
   sampler.set_metric(inv_metric);
 
@@ -107,7 +107,7 @@ int hmc_nuts_dense_e_adapt(Model& model, const stan::io::var_context& init,
 }
 
 /**
- * Runs HMC with NUTS with adaptation using dense Euclidean metric,
+ * Runs HMC with NUTS with adaptation using diag Euclidean metric,
  * with identity matrix as initial inv_metric.
  *
  * @tparam Model Model class
@@ -139,7 +139,7 @@ int hmc_nuts_dense_e_adapt(Model& model, const stan::io::var_context& init,
  * @return error_codes::OK if successful
  */
 template <class Model>
-int hmc_nuts_dense_e_adapt(
+int hmc_nuts_diag_e_adapt(
     Model& model, const stan::io::var_context& init, unsigned int random_seed,
     unsigned int chain, double init_radius, int num_warmup, int num_samples,
     int num_thin, bool save_warmup, int refresh, double stepsize,
@@ -149,10 +149,10 @@ int hmc_nuts_dense_e_adapt(
     callbacks::logger& logger, callbacks::writer& init_writer,
     callbacks::writer& sample_writer, callbacks::writer& diagnostic_writer) {
   stan::io::dump dmp
-      = util::create_unit_e_dense_inv_metric(model.num_params_r());
+      = util::create_unit_e_diag_inv_metric(model.num_params_r());
   stan::io::var_context& unit_e_metric = dmp;
 
-  return hmc_nuts_dense_e_adapt(
+  return hmc_nuts_diag_e_adapt(
       model, init, unit_e_metric, random_seed, chain, init_radius, num_warmup,
       num_samples, num_thin, save_warmup, refresh, stepsize, stepsize_jitter,
       max_depth, delta, gamma, kappa, t0, init_buffer, term_buffer, window,
@@ -160,7 +160,7 @@ int hmc_nuts_dense_e_adapt(
 }
 
 /**
- * Runs multiple chains of NUTS with adaptation using dense Euclidean metric
+ * Runs multiple chains of NUTS with adaptation using diag Euclidean metric
  * with a pre-specified Euclidean metric.
  *
  * @tparam Model Model class
@@ -211,7 +211,7 @@ int hmc_nuts_dense_e_adapt(
  */
 template <class Model, typename InitContextPtr, typename InitInvContextPtr,
           typename InitWriter, typename SampleWriter, typename DiagnosticWriter>
-int hmc_nuts_dense_e_adapt(
+int hmc_nuts_diag_e_adapt(
     Model& model, size_t num_chains, const std::vector<InitContextPtr>& init,
     const std::vector<InitInvContextPtr>& init_inv_metric,
     unsigned int random_seed, unsigned int init_chain_id, double init_radius,
@@ -224,14 +224,14 @@ int hmc_nuts_dense_e_adapt(
     std::vector<SampleWriter>& sample_writer,
     std::vector<DiagnosticWriter>& diagnostic_writer) {
   if (num_chains == 1) {
-    return hmc_nuts_dense_e_adapt(
+    return hmc_nuts_diag_e_adapt(
         model, *init[0], *init_inv_metric[0], random_seed, init_chain_id,
         init_radius, num_warmup, num_samples, num_thin, save_warmup, refresh,
         stepsize, stepsize_jitter, max_depth, delta, gamma, kappa, t0,
         init_buffer, term_buffer, window, interrupt, logger, init_writer[0],
         sample_writer[0], diagnostic_writer[0]);
   }
-  using sample_t = stan::mcmc::adapt_dense_e_nuts<Model, boost::ecuyer1988>;
+  using sample_t = stan::mcmc::adapt_diag_e_nuts<Model, boost::ecuyer1988>;
   std::vector<boost::ecuyer1988> rngs;
   rngs.reserve(num_chains);
   std::vector<std::vector<double>> cont_vectors;
@@ -243,9 +243,9 @@ int hmc_nuts_dense_e_adapt(
       rngs.emplace_back(util::create_rng(random_seed, init_chain_id + i));
       cont_vectors.emplace_back(util::initialize(
           model, *init[i], rngs[i], init_radius, true, logger, init_writer[i]));
-      Eigen::MatrixXd inv_metric = util::read_dense_inv_metric(
+      Eigen::MatrixXd inv_metric = util::read_diag_inv_metric(
           *init_inv_metric[i], model.num_params_r(), logger);
-      util::validate_dense_inv_metric(inv_metric, logger);
+      util::validate_diag_inv_metric(inv_metric, logger);
 
       samplers.emplace_back(model, rngs[i]);
       samplers[i].set_metric(inv_metric);
@@ -284,7 +284,7 @@ int hmc_nuts_dense_e_adapt(
 }
 
 /**
- * Runs multiple chains of NUTS with adaptation using dense Euclidean metric,
+ * Runs multiple chains of NUTS with adaptation using diag Euclidean metric,
  * with identity matrix as initial inv_metric.
  *
  * @tparam Model Model class
@@ -330,7 +330,7 @@ int hmc_nuts_dense_e_adapt(
  */
 template <class Model, typename InitContextPtr, typename InitWriter,
           typename SampleWriter, typename DiagnosticWriter>
-int hmc_nuts_dense_e_adapt(
+int hmc_nuts_diag_e_adapt(
     Model& model, size_t num_chains, const std::vector<InitContextPtr>& init,
     unsigned int random_seed, unsigned int init_chain_id, double init_radius,
     int num_warmup, int num_samples, int num_thin, bool save_warmup,
@@ -342,7 +342,7 @@ int hmc_nuts_dense_e_adapt(
     std::vector<SampleWriter>& sample_writer,
     std::vector<DiagnosticWriter>& diagnostic_writer) {
   if (num_chains == 1) {
-    return hmc_nuts_dense_e_adapt(
+    return hmc_nuts_diag_e_adapt(
         model, *init[0], random_seed, init_chain_id, init_radius, num_warmup,
         num_samples, num_thin, save_warmup, refresh, stepsize, stepsize_jitter,
         max_depth, delta, gamma, kappa, t0, init_buffer, term_buffer, window,
@@ -353,9 +353,9 @@ int hmc_nuts_dense_e_adapt(
   unit_e_metrics.reserve(num_chains);
   for (size_t i = 0; i < num_chains; ++i) {
     unit_e_metrics.emplace_back(std::make_unique<stan::io::dump>(
-        util::create_unit_e_dense_inv_metric(model.num_params_r())));
+        util::create_unit_e_diag_inv_metric(model.num_params_r())));
   }
-  return hmc_nuts_dense_e_adapt(
+  return hmc_nuts_diag_e_adapt(
       model, num_chains, init, unit_e_metrics, random_seed, init_chain_id,
       init_radius, num_warmup, num_samples, num_thin, save_warmup, refresh,
       stepsize, stepsize_jitter, max_depth, delta, gamma, kappa, t0,

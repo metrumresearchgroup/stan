@@ -105,8 +105,6 @@ void run_em_sampler(Sampler& sampler, Model& model,
 
     s = sampler.transition(s, logger);
 
-    // mcmc_writer.write_sample_params(base_rng, init_s, sampler, model);
-    // mcmc_writer.write_diagnostic_params(init_s, sampler);
     model.add_sample(s.cont_params());
   }
 
