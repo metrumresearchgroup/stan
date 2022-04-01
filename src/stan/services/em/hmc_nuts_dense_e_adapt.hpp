@@ -95,7 +95,7 @@ int hmc_nuts_dense_e_adapt(Model& model, const stan::io::var_context& init,
                             logger);
 
   size_t n_se = 100;
-  model::welford_sa_estimator cov_est(model.n_cov);
+  model::welford_sa_estimator cov_est(model.n_mu);
   model.covar_est = &cov_est;
   for (auto i = 0; i < n_se; ++i) {
     run_em_sampler(sampler, model, cont_vector, num_warmup, num_samples, num_thin, refresh,
