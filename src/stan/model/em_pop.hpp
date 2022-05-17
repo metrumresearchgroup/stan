@@ -7,6 +7,7 @@
 #include <stan/math/prim/fun/welford_covar_estimator.hpp>
 #include <stan/math/rev/functor/gradient.hpp>
 #include <stan/math/rev/functor/jacobian.hpp>
+#include <stan/math/prim/prob/multi_normal_lpdf.hpp>
 #include <boost/random/additive_combine.hpp>
 #include <ostream>
 #include <string>
@@ -15,7 +16,6 @@
 
 namespace stan {
 namespace model {
-
   template<typename F_mu, typename T_covariate>
   struct mu_referenced_multi_normal_lpdf {
     F_mu const& f;
@@ -30,12 +30,13 @@ namespace model {
       f(f0), covariate(c), subj_sample(s), sigma(sigma0) 
      {}
 
-    template<typename T>
-    T operator()(Eigen::Matrix<T, -1, 1> const& theta) {
-      T l = 0;
+    template<typename T,
+             require_vector_like_t<T>* = nullptr>
+    return_type_t<T> operator()(T const& theta) const {
+      return_type_t<T> l = 0.0;
       size_t n_subj = subj_sample.size();
       for (auto i = 0; i < n_subj; ++i) {
-        l += multi_normal_lpdf(subj_sample[i], f(theta, covariate[i]), sigma);
+        l += stan::math::multi_normal_lpdf(subj_sample[i], f(theta, covariate[i], nullptr), sigma);
       }
       return l;
     }
@@ -50,63 +51,78 @@ namespace model {
       f(f0), covariate(c)
     {}
 
-    template<typename T>
-    Eigen::Matrix<T, -1, 1> operator()(Eigen::Matrix<T, -1, 1> const& theta) {
-      return f(theta, covariate);
+    template<typename T,
+             stan::require_vector_like_t<T>* = nullptr>
+    Eigen::Matrix<stan::return_type_t<T>, -1, 1> 
+    operator()(T const& theta) const {
+      return f(theta, covariate, nullptr);
     }
   };
 
-  template<typename F_mu>
-  struct mu_referenced_theta_update {
-    template<typename T>
-    void operator()(F_mu&& f,
-                    Eigen::VectorXd& theta,
-                    Eigen::VectorXd& mu,
-                    Eigen::MatrixXd& sigma,
-                    std::vector<Eigen::Matrix<double, -1, 1>> const& phi,
-                    std::vector<T> const&& covariate) {
-      mu_referenced_multi_normal_lpdf<F_mu, T> 
-        lp(f, covariate, phi, sigma);
+  /** 
+   * Calculate score function wrt theta. We make assumption that theta
+   * influence yhat only through mu, thus the score calculation
+   * doesn't involve yhat, or phi -> yhat mapping, e.g. compartment models.
+   * We also assume multi-normal: phi ~ N(mu(theta), sigma)
+   * 
+   * @param mu mu-referencing function. theta -> phi
+   * @param theta population mean
+   * @param sigma covariance matrix
+   * @param phi individual parameters
+   * @param covariate covariates
+   * @param score d(log(f1 * f2))/dtheta
+   */
+  template<typename F_mu, typename T>
+  void accumulate_score(F_mu&& mu,
+                        Eigen::VectorXd& theta,
+                        Eigen::MatrixXd& sigma,
+                        std::vector<Eigen::Matrix<double, -1, 1>> const& phi,
+                        std::vector<T> const& covariate,
+                        Eigen::VectorXd & score) {
+    mu_referenced_multi_normal_lpdf<F_mu, T> lp(mu, covariate, phi, sigma);
+    double lp_val;
+    stan::math::gradient(lp, theta, lp_val, score);
+  }
 
-      // solve Hx = b where the rhs b is the score function
-      // and H is the Hessian/information matrix
-      int n_mu = mu.size();
-      int n = theta.size();
-      Eigen::VectorXd rhs(n);
-      double lp_val;
-      stan::math::gradient(lp, theta, lp_val, rhs);
-
-      // approximate hessian/information matrix
-      mu_referenced_f<F_mu, T> mu_f(f, covariate);
-      Eigen::MatrixXd dmu(n_mu, n);
-      Eigen::VectorXd mu_f_val(n_mu);
-      jacobian(mu_f, theta, mu_f_val, dmu);
-
-      // Precision matrix
-      Eigen::MatrixXd inv_sigma = 
-        sigma.llt().solve(Eigen::MatrixXd::Identity(sigma.rows(), sigma.cols()));
-
-      Eigen::MatrixXd hessian = dmu.transpose() * inv_sigma * dmu;
-      Eigen::VectorXd dtheta = hessian.llt().solve(dmu);
-
-      double a = 1.0;
-      while (!(lp(theta) < lp_val && a > 0.05)) {
-        theta += a * dtheta;
-        a /= 1.414;
+  template<typename F_mu, typename T>
+  void solve_theta_from_hessian(F_mu&& mu,
+                                Eigen::VectorXd& theta,
+                                Eigen::MatrixXd const& sigma,
+                                Eigen::MatrixXd const& inv_sigma,
+                                std::vector<Eigen::Matrix<double, -1, 1>> const& phi,
+                                std::vector<T> const& covariate,
+                                Eigen::VectorXd & score,
+                                Eigen::MatrixXd & hessian) {
+    Eigen::MatrixXd dmu;
+    Eigen::VectorXd mu_f_val;
+    for (auto i = 1; i < covariate.size(); ++i) {
+      mu_referenced_f<F_mu, T> mu_f(mu, covariate[i]);
+      stan::math::jacobian(mu_f, theta, mu_f_val, dmu);
+      if (i == 0) {
+        hessian = dmu.transpose() * inv_sigma * dmu;
+      } else {
+        hessian += dmu.transpose() * inv_sigma * dmu;
       }
     }
-  };
+    Eigen::MatrixXd h = hessian + hessian.transpose();
+    h = h.array() * 0.5;
 
-  template<>
-  struct mu_referenced_theta_update<nullptr_t> {
-    template<typename T>
-    void operator()(nullptr_t&& f,
-                    Eigen::VectorXd& theta,
-                    Eigen::VectorXd& mu,
-                    Eigen::MatrixXd& sigma,
-                    std::vector<Eigen::Matrix<double, -1, 1>> const& phi,
-                    std::vector<T> const&& covariate) {}
-  };
+    std::cout << "taki test H: " <<  "\n";
+    std::cout << h << "\n";
+    Eigen::VectorXd dtheta = h.fullPivLu().solve(score);
+    std::cout << "taki test inv_h*dtheta: " << h * dtheta - score << "\n";
+    double a = 1.0;
+    mu_referenced_multi_normal_lpdf<F_mu, T> lp(mu, covariate, phi, sigma);
+    std::cout << "[torsten debug print] test before: " << lp(theta) << "\n";
+    // while (lp(theta + a * dtheta) < lp(theta) && a > 0.1) {
+    //   a /= 1.414;
+    // }
+    Eigen::VectorXd theta_next = theta + a * dtheta;
+    // if (lp(theta_next) > lp(theta)) {
+      theta  = theta_next;
+    // }
+    std::cout << "[torsten debug print] test after: " << a << " " << lp(theta) << "\n";
+  }
 
   /** 
    * stochastic approximation version of Welford estimator
@@ -202,6 +218,9 @@ class em_pop {
   Eigen::VectorXd* p_mu;
   Eigen::VectorXd* p_theta;
   Eigen::MatrixXd* p_sigma;
+  Eigen::VectorXd score;
+  Eigen::MatrixXd hessian;
+  Eigen::MatrixXd inv_sigma;
 
   size_t n_subj;
   size_t n;
@@ -236,8 +255,18 @@ class em_pop {
 
   void set_sigma(Eigen::MatrixXd & sigma) { 
     p_sigma = &sigma;
-    assert(n_mu == sigma.rows());
-    assert(n_mu == sigma.cols());
+    if (p_mu == nullptr) {
+      n_mu = sigma.rows();
+    } else {
+      assert(n_mu == sigma.rows());
+      assert(n_mu == sigma.cols());
+    }
+  }
+
+  void set_workspace() {
+    score.resize(n);
+    hessian.resize(n, n);
+    inv_sigma.resize(n_mu, n_mu);
   }
 
   /** 
@@ -245,22 +274,51 @@ class em_pop {
    * sufficient statistics.
    * 
    */
-  void update_hyper_param(std::vector<Eigen::VectorXd> const& phi) {
-    Eigen::VectorXd& ref_mu = *p_mu;
-    Eigen::VectorXd& ref_theta = *p_theta;
-    Eigen::MatrixXd& ref_sigma = *p_sigma;
-
+  void accumulate_sample(std::vector<Eigen::VectorXd> const& phi) {
     n_subj = phi.size();
     for (auto i = 0; i < n_subj; ++i) {
       covar_est -> add_sample(phi[i]);
     }
-    covar_est -> weighted_sample_estimate(ref_mu, ref_sigma);
   }
 
-  void em_step() {
-    covar_est -> incr_iter();
-    covar_est -> restart();
+  void set_inv_sigma() {
+    Eigen::MatrixXd& ref_sigma = *p_sigma;
+    inv_sigma = ref_sigma.colPivHouseholderQr().solve(Eigen::MatrixXd::Identity(n_mu, n_mu));
+    std::cout << "taki test inv_sigma: " << "\n";
+    std::cout << inv_sigma  << "\n";
+  }
 
+  /** 
+   * Update theta or mu & sigma according EM iteration
+   * 
+   * The algorithm flow:
+   * 1. The actual model class impl add_samle() that
+   *    retrieves constrained samples "phi"
+   * mu_referenced_hessian<F_mu> object to update hessian
+   * The callback in the actual model is in the update_theta function
+   *
+   * void update_theta(Eigen::VectorXd & theta) {
+   *
+   * }
+   * 
+   * 
+   */  
+  void em_step() {
+    Eigen::VectorXd& ref_mu = *p_mu;
+    Eigen::VectorXd& ref_theta = *p_theta;
+    Eigen::MatrixXd& ref_sigma = *p_sigma;
+
+    if (p_theta != nullptr) {
+      // update_theta(ref_theta);
+    } else {
+      covar_est -> weighted_sample_estimate(ref_mu, ref_sigma);
+      covar_est -> incr_iter();
+      covar_est -> restart();
+    }
+
+    // prepare next EM iteration
+
+    // Precision matrix
     if (p_theta != nullptr) {
       std::cout << "[torsten debug print] EM mean: " << theta().transpose() << "\n";      
     } else {

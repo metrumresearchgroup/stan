@@ -50,6 +50,8 @@ class model_base : public prob_grad,
 
   virtual void add_sample(Eigen::VectorXd const& q) = 0;
 
+  // virtual void update_theta(Eigen::VectorXd const& theta) = 0;
+
   /**
    * Return the name of the model.
    *

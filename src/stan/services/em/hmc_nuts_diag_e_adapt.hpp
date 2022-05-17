@@ -94,7 +94,7 @@ int hmc_nuts_diag_e_adapt(Model& model, const stan::io::var_context& init,
   sampler.set_window_params(num_warmup, init_buffer, term_buffer, window,
                             logger);
 
-  size_t n_se = 100;
+  size_t n_se = 200;
   model::welford_sa_estimator cov_est(model.n_mu);
   model.covar_est = &cov_est;
   for (auto i = 0; i < n_se; ++i) {

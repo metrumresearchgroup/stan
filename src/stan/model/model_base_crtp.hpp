@@ -89,6 +89,10 @@ class model_base_crtp : public stan::model::model_base {
     static_cast<M*>(this)->add_sample(q);
   }
 
+  // inline void update_theta(Eigen::VectorXd const& theta) override {
+  //   static_cast<M*>(this)->update_theta(theta);
+  // }
+
   inline double log_prob(Eigen::VectorXd& theta,
                          std::ostream* msgs) const override {
     return static_cast<const M*>(this)->template log_prob<false, false, double>(
