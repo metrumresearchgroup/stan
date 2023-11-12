@@ -23,6 +23,7 @@ namespace optimize {
  * Runs the L-BFGS algorithm for a model.
  *
  * @tparam Model A model implementation
+ * @tparam jacobian `true` to include Jacobian adjustment (default `false`)
  * @param[in] model Input model to test (with data already instantiated)
  * @param[in] init var context for initialization
  * @param[in] random_seed random seed for the random number generator
@@ -49,7 +50,7 @@ namespace optimize {
  * @param[in,out] parameter_writer output for parameter values
  * @return error_codes::OK if successful
  */
-template <class Model>
+template <class Model, bool jacobian = false>
 int lbfgs(Model& model, const stan::io::var_context& init,
           unsigned int random_seed, unsigned int chain, double init_radius,
           int history_size, double init_alpha, double tol_obj,
@@ -61,12 +62,19 @@ int lbfgs(Model& model, const stan::io::var_context& init,
   boost::ecuyer1988 rng = util::create_rng(random_seed, chain);
 
   std::vector<int> disc_vector;
-  std::vector<double> cont_vector = util::initialize<false>(
-      model, init, rng, init_radius, false, logger, init_writer);
+  std::vector<double> cont_vector;
 
+  try {
+    cont_vector = util::initialize<false>(model, init, rng, init_radius, false,
+                                          logger, init_writer);
+  } catch (const std::exception& e) {
+    logger.error(e.what());
+    return error_codes::CONFIG;
+  }
   std::stringstream lbfgs_ss;
   typedef stan::optimization::BFGSLineSearch<Model,
-                                             stan::optimization::LBFGSUpdate<> >
+                                             stan::optimization::LBFGSUpdate<>,
+                                             double, Eigen::Dynamic, jacobian>
       Optimizer;
   Optimizer lbfgs(model, cont_vector, disc_vector, &lbfgs_ss);
   lbfgs.get_qnupdate().set_history_size(history_size);
@@ -172,7 +180,7 @@ int lbfgs(Model& model, const stan::io::var_context& init,
     logger.info("Optimization terminated normally: ");
     return_code = error_codes::OK;
   } else {
-    logger.info("Optimization terminated with error: ");
+    logger.error("Optimization terminated with error: ");
     return_code = error_codes::SOFTWARE;
   }
   logger.info("  " + lbfgs.get_code_string(ret));

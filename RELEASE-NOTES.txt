@@ -5,6 +5,72 @@ Note: these are the release notes for the stan-dev/stan repository.
 Further changes may arise at the interface level (stan-dev/{rstan,
 pystan, cmdstan}) and math library level (stan-dev/math).
 
+v2.33.0 (5 September 2023)
+======================================================================
+
+- Added Pathfinder and Multi-pathfinder to the service APIs. (#3123, #3205)
+- Added the `unconstrain_array` method to the model base class as the inverse of `write_array`. (#3179, #3211)
+- Support Tuple indices in Stan CSV Header Reader. (#3190)
+- Add callback writer to output JSON data for diagnostics. (#3191, #3202)
+- Replace use of `boost::lexical_cast` with `std::strol`, etc, and remove spurious header includes. (#3206)
+- Fixed several typos in documentation. (#3210)
+- Added multi chain service functions for hmc nuts for adapatation and nonadaption for the unit e, diag, and dense metrics. (#3212)
+- Made the service functions consistently catch exceptions and favor return codes. (#3214)
+- Added a hard copy of the event vector for OpenCL before making a copy to go from a tbb concurrent vector to a standard vector. (#3217)
+- Added missing size checks to vectors of Eigen types. (#3218)
+- Remove deprecated syntax from remaining tests. (#3220)
+
+v2.32.2 (15 May 2023)
+======================================================================
+
+- Fixed handling of zero-sized parameters in standalone generated quantities.
+
+v2.32.1 (2 May 2023)
+======================================================================
+
+- Fix an issue where the output of Laplace sampling was inconsistent with other outputs and could lead to invalid CSV headers (#3184)
+
+v2.32.0 (20 April 2023)
+======================================================================
+
+- Extended `get_dims` and `get_param_names` in model_base with flags for whether to include transformed parameters and generated quantities. (#3139)
+- Fixed an issue where initialization would still retry many times even if a fixed initialization was provided. (#3139)
+- Cleaned up newlines in Laplace service logging. (#3153)
+- make: use SUNDIALS_TARGETS instead of LIBSUNDIALS. (#3162)
+- Updated JSON var context to handle nested structures (tuples). (#3165)
+- Always discard at least 1 entry in new RNGs. (#3168)
+- Relaxed requirements for 0-sized data objects in JSON. (#3170)
+- Deleted unused io/cmd_line.hpp. (#3172)
+- Standalone GQ: Output NaNs when exception is caught. (#3173)
+- Cleaned up dimension and name logic in random_var_context. (#3174)
+- Removed old/unused IO code. (#3177)
+- Made deserializer's map members const. (#3178)
+
+v2.31.0 (21 November 2022)
+======================================================================
+- RapidJSON library is now a part of Stan (previously part of CmdStan) (#3143)
+- Added a #define flag flag to enable nested autodiff in model_base class (#3144)
+- Set up the service function so interfaces can offer Laplace approximation. (#3148)
+
+v2.30.0 (1 July 2022)
+======================================================================
+- Added `const noexcept` modifiers to the three accessors related to step-size (nominal, current, and jitter). (3124)
+- Removed unused variable `num_params`. (#3126)
+- Code cleanup - consistent set of includes for the set of services in stan/services/sample. (#3111)
+
+v2.29.2 (25 March 2022)
+======================================================================
+
+- Fixed bug with selecting matrix rows with `matrix[x:x, ]`.
+- Updated Math submodule to 4.3.2
+
+v2.29.1 (2 March 2022)
+======================================================================
+
+- Updated Stan Math to 4.3.1.
+- Fixed a bug with assigning var matrix types, only surfaces when using stanc3 optimization (`--O1` or up).
+
+>>>>>>> master
 v2.29.0 (14 February 2022)
 ======================================================================
 
@@ -143,11 +209,11 @@ v.2.19.0 (20 March 2019)
 ======================================================================
 Stan now comes with GPU support for certain functions; see the Math library
 release notes for more details: https://github.com/stan-dev/math/releases/tag/v2.19.0
-The manual is now online in HTML format! 
+The manual is now online in HTML format!
 
 New Features
 --------------------------------------------------
-* #2618 - Add a new Variational Inference diagnostic 
+* #2618 - Add a new Variational Inference diagnostic
 * #2627 - 1d integrator
 * #2725 - standalone generated quantities
 * #2717, #2669 - offset/multiplier transformations for easier non-centering, etc

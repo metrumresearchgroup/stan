@@ -3,6 +3,7 @@
 
 #include <stan/math/prim/meta.hpp>
 #include <stan/math/prim/err.hpp>
+#include <stan/math/prim/functor.hpp>
 #include <stan/math/prim/fun/to_ref.hpp>
 #include <stan/model/indexing/access_helpers.hpp>
 #include <stan/model/indexing/index.hpp>
@@ -10,6 +11,7 @@
 #include <stan/model/indexing/rvalue_index_size.hpp>
 #include <type_traits>
 #include <vector>
+#include <tuple>
 
 namespace stan {
 
@@ -41,6 +43,11 @@ namespace model {
  *  - General overload for nested std vectors.
  */
 
+template <typename Tuple1, typename Tuple2,
+          require_all_t<internal::is_tuple<Tuple1>,
+                        internal::is_tuple<Tuple2>>* = nullptr>
+inline void assign(Tuple1&& x, Tuple2&& y, const char* name);
+
 /**
  * Assign one object to another.
  *
@@ -52,7 +59,8 @@ namespace model {
  */
 template <
     typename T, typename U,
-    require_t<std::is_assignable<std::decay_t<T>&, std::decay_t<U>>>* = nullptr>
+    require_t<std::is_assignable<std::decay_t<T>&, std::decay_t<U>>>* = nullptr,
+    require_all_not_t<internal::is_tuple<T>, internal::is_tuple<U>>* = nullptr>
 inline void assign(T&& x, U&& y, const char* name) {
   internal::assign_impl(x, std::forward<U>(y), name);
 }
@@ -834,7 +842,7 @@ template <typename StdVec, typename U, require_std_vector_t<StdVec>* = nullptr,
           require_t<std::is_assignable<value_type_t<StdVec>&, U>>* = nullptr>
 inline void assign(StdVec&& x, U&& y, const char* name, index_uni idx) {
   stan::math::check_range("array[uni,...] assign", name, x.size(), idx.n_);
-  x[idx.n_ - 1] = std::forward<U>(y);
+  assign(x[idx.n_ - 1], std::forward<U>(y), name);
 }
 
 /**
@@ -888,6 +896,36 @@ inline void assign(T&& x, U&& y, const char* name, const Idx1& idx1,
       assign(x[i - 1], y[n], name, idxs...);
     }
   }
+}
+
+namespace internal {
+template <typename T, T... I>
+inline constexpr auto make_tuple_seq(std::integer_sequence<T, I...>) {
+  return std::make_tuple(I...);
+}
+}  // namespace internal
+
+/**
+ * Assign one tuple to another
+ * @tparam Tuple1 Tuple with the same number of elements as `Tuple2`
+ * @tparam Tuple2 Tuple with the same number of elements as `Tuple1`
+ * @param x A tuple with elements to be assigned to
+ * @param y A tuple with elements to be assigned from
+ * @param name The name of the tuple to assign to
+ */
+template <
+    typename Tuple1, typename Tuple2,
+    require_all_t<internal::is_tuple<Tuple1>, internal::is_tuple<Tuple2>>*>
+inline void assign(Tuple1&& x, Tuple2&& y, const char* name) {
+  constexpr auto t1_size = std::tuple_size<std::decay_t<Tuple1>>::value;
+  stan::math::for_each(
+      [name](auto&& x_sub, auto&& y_sub, auto idx_name) mutable {
+        assign(std::forward<decltype(x_sub)>(x_sub),
+               std::forward<decltype(y_sub)>(y_sub),
+               (std::string(name) + "." + std::to_string(idx_name)).c_str());
+      },
+      std::forward<Tuple1>(x), std::forward<Tuple2>(y),
+      internal::make_tuple_seq(std::make_index_sequence<t1_size>()));
 }
 
 }  // namespace model

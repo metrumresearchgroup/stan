@@ -16,6 +16,7 @@ help:
 -include make/mpi_warmup.mk		  # cross-chain warmup
 
 MATH ?= lib/stan_math/
+RAPIDJSON ?= lib/rapidjson_1.1.0/
 
 -include $(MATH)make/compiler_flags
 -include $(MATH)make/dependencies
@@ -26,7 +27,7 @@ include make/tests                        # tests
 include make/clang-tidy
 include make/torsten.mk			  # torsten
 
-INC_FIRST = -I $(if $(STAN),$(STAN)/src,src) -I ./src/
+INC_FIRST = -I $(if $(STAN),$(STAN)/src,src) -I ./src/ -I $(RAPIDJSON)
 
 .PHONY: help
 help:
