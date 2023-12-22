@@ -13,7 +13,6 @@ help:
 
 -include $(HOME)/.config/stan/make.local  # user-defined variables
 -include make/local                       # user-defined variables
--include make/mpi_warmup.mk		  # cross-chain warmup
 
 MATH ?= lib/stan_math/
 RAPIDJSON ?= lib/rapidjson_1.1.0/
