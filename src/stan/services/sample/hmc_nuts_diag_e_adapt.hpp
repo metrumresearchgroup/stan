@@ -61,9 +61,7 @@ template <typename Model>
 int hmc_nuts_diag_e_adapt(
     Model& model, const stan::io::var_context& init,
     const stan::io::var_context& init_inv_metric, unsigned int random_seed,
-    unsigned int chain, double init_radius,
-    int num_cross_chains, int cross_chain_window, double cross_chain_rhat, int cross_chain_ess,
-    int num_warmup, int num_samples,
+    unsigned int chain, double init_radius, int num_warmup, int num_samples,
     int num_thin, bool save_warmup, int refresh, double stepsize,
     double stepsize_jitter, int max_depth, double delta, double gamma,
     double kappa, double t0, unsigned int init_buffer, unsigned int term_buffer,
@@ -102,13 +100,6 @@ int hmc_nuts_diag_e_adapt(
 
   sampler.set_window_params(num_warmup, init_buffer, term_buffer, window,
                             logger);
-
-  // cross chain adaptation
-  sampler.set_cross_chain_adaptation_params(init_buffer, term_buffer, num_warmup,
-                                            cross_chain_window, num_cross_chains,
-                                            cross_chain_rhat, cross_chain_ess);
-  mcmc::mpi_var_adaptation var_adapt(model.num_params_r(), num_warmup, cross_chain_window);
-  sampler.set_cross_chain_metric_adaptation(&var_adapt);
 
   util::run_adaptive_sampler(
       sampler, model, cont_vector, num_warmup, num_samples, num_thin, refresh,
@@ -151,9 +142,7 @@ int hmc_nuts_diag_e_adapt(
 template <typename Model>
 int hmc_nuts_diag_e_adapt(
     Model& model, const stan::io::var_context& init, unsigned int random_seed,
-    unsigned int chain, double init_radius,
-    int num_cross_chains, int cross_chain_window, double cross_chain_rhat, int cross_chain_ess,
-    int num_warmup, int num_samples,
+    unsigned int chain, double init_radius, int num_warmup, int num_samples,
     int num_thin, bool save_warmup, int refresh, double stepsize,
     double stepsize_jitter, int max_depth, double delta, double gamma,
     double kappa, double t0, unsigned int init_buffer, unsigned int term_buffer,
@@ -163,8 +152,7 @@ int hmc_nuts_diag_e_adapt(
   stan::io::dump unit_e_metric
       = util::create_unit_e_diag_inv_metric(model.num_params_r());
   return hmc_nuts_diag_e_adapt(
-      model, init, unit_e_metric, random_seed, chain, init_radius,
-      num_cross_chains, cross_chain_window, cross_chain_rhat, cross_chain_ess, num_warmup,
+      model, init, unit_e_metric, random_seed, chain, init_radius, num_warmup,
       num_samples, num_thin, save_warmup, refresh, stepsize, stepsize_jitter,
       max_depth, delta, gamma, kappa, t0, init_buffer, term_buffer, window,
       interrupt, logger, init_writer, sample_writer, diagnostic_writer);
@@ -226,7 +214,6 @@ int hmc_nuts_diag_e_adapt(
     Model& model, size_t num_chains, const std::vector<InitContextPtr>& init,
     const std::vector<InitInvContextPtr>& init_inv_metric,
     unsigned int random_seed, unsigned int init_chain_id, double init_radius,
-    int num_cross_chains, int cross_chain_window, double cross_chain_rhat, int cross_chain_ess,
     int num_warmup, int num_samples, int num_thin, bool save_warmup,
     int refresh, double stepsize, double stepsize_jitter, int max_depth,
     double delta, double gamma, double kappa, double t0,
@@ -238,9 +225,7 @@ int hmc_nuts_diag_e_adapt(
   if (num_chains == 1) {
     return hmc_nuts_diag_e_adapt(
         model, *init[0], *init_inv_metric[0], random_seed, init_chain_id,
-        init_radius, 
-        num_cross_chains, cross_chain_window, cross_chain_rhat, cross_chain_ess,
-        num_warmup, num_samples, num_thin, save_warmup, refresh,
+        init_radius, num_warmup, num_samples, num_thin, save_warmup, refresh,
         stepsize, stepsize_jitter, max_depth, delta, gamma, kappa, t0,
         init_buffer, term_buffer, window, interrupt, logger, init_writer[0],
         sample_writer[0], diagnostic_writer[0]);
@@ -347,7 +332,6 @@ template <class Model, typename InitContextPtr, typename InitWriter,
 int hmc_nuts_diag_e_adapt(
     Model& model, size_t num_chains, const std::vector<InitContextPtr>& init,
     unsigned int random_seed, unsigned int init_chain_id, double init_radius,
-    int num_cross_chains, int cross_chain_window, double cross_chain_rhat, int cross_chain_ess,
     int num_warmup, int num_samples, int num_thin, bool save_warmup,
     int refresh, double stepsize, double stepsize_jitter, int max_depth,
     double delta, double gamma, double kappa, double t0,
@@ -358,9 +342,8 @@ int hmc_nuts_diag_e_adapt(
     std::vector<DiagnosticWriter>& diagnostic_writer) {
   if (num_chains == 1) {
     return hmc_nuts_diag_e_adapt(
-        model, *init[0], random_seed, init_chain_id, init_radius, 
-        num_cross_chains, cross_chain_window, cross_chain_rhat, cross_chain_ess,
-        num_warmup, num_samples, num_thin, save_warmup, refresh, stepsize, stepsize_jitter,
+        model, *init[0], random_seed, init_chain_id, init_radius, num_warmup,
+        num_samples, num_thin, save_warmup, refresh, stepsize, stepsize_jitter,
         max_depth, delta, gamma, kappa, t0, init_buffer, term_buffer, window,
         interrupt, logger, init_writer[0], sample_writer[0],
         diagnostic_writer[0]);
@@ -373,9 +356,7 @@ int hmc_nuts_diag_e_adapt(
   }
   return hmc_nuts_diag_e_adapt(
       model, num_chains, init, unit_e_metrics, random_seed, init_chain_id,
-      init_radius, 
-      num_cross_chains, cross_chain_window, cross_chain_rhat, cross_chain_ess,
-      num_warmup, num_samples, num_thin, save_warmup, refresh,
+      init_radius, num_warmup, num_samples, num_thin, save_warmup, refresh,
       stepsize, stepsize_jitter, max_depth, delta, gamma, kappa, t0,
       init_buffer, term_buffer, window, interrupt, logger, init_writer,
       sample_writer, diagnostic_writer);

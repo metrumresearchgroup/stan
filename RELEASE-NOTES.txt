@@ -70,7 +70,6 @@ v2.29.1 (2 March 2022)
 - Updated Stan Math to 4.3.1.
 - Fixed a bug with assigning var matrix types, only surfaces when using stanc3 optimization (`--O1` or up).
 
->>>>>>> master
 v2.29.0 (14 February 2022)
 ======================================================================
 
@@ -209,11 +208,11 @@ v.2.19.0 (20 March 2019)
 ======================================================================
 Stan now comes with GPU support for certain functions; see the Math library
 release notes for more details: https://github.com/stan-dev/math/releases/tag/v2.19.0
-The manual is now online in HTML format!
+The manual is now online in HTML format! 
 
 New Features
 --------------------------------------------------
-* #2618 - Add a new Variational Inference diagnostic
+* #2618 - Add a new Variational Inference diagnostic 
 * #2627 - 1d integrator
 * #2725 - standalone generated quantities
 * #2717, #2669 - offset/multiplier transformations for easier non-centering, etc

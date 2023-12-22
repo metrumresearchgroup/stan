@@ -5,7 +5,6 @@
 #include <stan/callbacks/interrupt.hpp>
 #include <stan/mcmc/base_mcmc.hpp>
 #include <stan/services/util/mcmc_writer.hpp>
-#include <stan/mcmc/cross_chain/mpi_cross_chain.hpp>
 #include <string>
 
 namespace stan {
@@ -41,9 +40,8 @@ namespace util {
  * @param[in] num_chains The number of chains used in the program. This
  *  is used in generate transitions to print out the chain number.
  */
-template <class Sampler, class Model, class RNG,
-          std::enable_if_t<std::is_base_of<stan::mcmc::base_mcmc, Sampler>::value>* = nullptr>
-void generate_transitions(Sampler& sampler, int num_iterations,
+template <class Model, class RNG>
+void generate_transitions(stan::mcmc::base_mcmc& sampler, int num_iterations,
                           int start, int finish, int num_thin, int refresh,
                           bool save, bool warmup,
                           util::mcmc_writer& mcmc_writer,
@@ -75,11 +73,6 @@ void generate_transitions(Sampler& sampler, int num_iterations,
     if (save && ((m % num_thin) == 0)) {
       mcmc_writer.write_sample_params(base_rng, init_s, sampler, model);
       mcmc_writer.write_diagnostic_params(init_s, sampler);
-    }
-
-    // check cross-chain convergence
-    if (mpi_cross_chain<Sampler>::end_transitions(sampler)) {
-      break;
     }
   }
 }
