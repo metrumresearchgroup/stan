@@ -95,6 +95,8 @@ pipeline {
         skipDefaultCheckout()
         preserveStashes(buildCount: 7)
         parallelsAlwaysFailFast()
+        buildDiscarder(logRotator(numToKeepStr: '20', daysToKeepStr: '30'))
+        disableConcurrentBuilds(abortPrevious: env.BRANCH_NAME != "downstream_tests" && env.BRANCH_NAME != "downstream_hotfix")
     }
     environment {
         GCC = 'g++'
@@ -113,19 +115,6 @@ pipeline {
         OPENCL_PLATFORM_ID_GPU = 0
     }
     stages {
-
-        stage('Kill previous builds') {
-            when {
-                not { branch 'develop' }
-                not { branch 'master' }
-                not { branch 'downstream_tests' }
-            }
-            steps {
-                script {
-                    utils.killOldBuilds()
-                }
-            }
-        }
         stage("Clang-format") {
             agent {
                 docker {
@@ -203,19 +192,17 @@ pipeline {
             }
             post {
                 always {
-
-                    recordIssues id: "lint_doc_checks",
-                    name: "Linting & Doc checks",
-                    enabledForFailure: true,
-                    aggregatingResults : true,
-                    tools: [
-                        cppLint(id: "cpplint", name: "Linting & Doc checks@CPPLINT")
-                    ],
-                    blameDisabled: false,
-                    qualityGates: [[threshold: 1, type: 'TOTAL', unstable: true]],
-                    healthy: 10, unhealthy: 100, minimumSeverity: 'HIGH',
-                    referenceJobName: env.BRANCH_NAME
-
+                    recordIssues(
+                        id: "lint_doc_checks",
+                        name: "Linting & Doc checks",
+                        enabledForFailure: true,
+                        aggregatingResults : true,
+                        tools: [
+                            cppLint(id: "cpplint", name: "Linting & Doc checks@CPPLINT")
+                        ],
+                        qualityGates: [[threshold: 1, type: 'TOTAL', unstable: true]],
+                        healthy: 10, unhealthy: 100, minimumSeverity: 'HIGH'
+                    )
                     deleteDir()
                 }
             }
@@ -277,8 +264,8 @@ pipeline {
                                 SET \"PATH=C:\\PROGRA~1\\R\\R-4.1.2\\bin;%PATH%\"
                                 SET \"PATH=C:\\PROGRA~1\\Microsoft^ MPI\\Bin;%PATH%\"
                                 SET \"MPI_HOME=C:\\PROGRA~1\\Microsoft^ MPI\\Bin\"
-                                mingw32-make.exe -f lib/stan_math/make/standalone math-libs
-                                mingw32-make.exe -j${PARALLEL} test-headers
+                                make.exe -f lib/stan_math/make/standalone math-libs
+                                make.exe -j${PARALLEL} test-headers
                             """
                             setupCXX(false, WIN_CXX, stanc3_bin_url())
                             runTestsWin("src/test/unit")
@@ -289,7 +276,7 @@ pipeline {
                     agent {
                         docker {
                             image 'stanorg/ci:gpu'
-                            label 'linux'
+                            label 'linux && gpu'
                             args '--pull always --gpus 1'
                         }
                     }
@@ -461,7 +448,7 @@ pipeline {
                                 SET \"PATH=C:\\PROGRA~1\\Microsoft^ MPI\\Bin;%PATH%\"
                                 SET \"MPI_HOME=C:\\PROGRA~1\\Microsoft^ MPI\\Bin\"
                                 cd performance-tests-cmdstan/cmdstan
-                                mingw32-make.exe -j${PARALLEL} build
+                                make.exe -j${PARALLEL} build
                                 cd ..
                                 python ./runPerformanceTests.py -j${PARALLEL} ${integration_tests_flags()}--runs=0 stanc3/test/integration/good
                                 python ./runPerformanceTests.py -j${PARALLEL} ${integration_tests_flags()}--runs=0 example-models
@@ -509,26 +496,27 @@ pipeline {
     post {
         always {
             node("linux") {
-                recordIssues id: "pipeline",
-                name: "Entire pipeline results",
-                enabledForFailure: true,
-                aggregatingResults : false,
-                filters: [
-                    excludeFile('lib/.*')
-                ],
-                tools: [
-                    gcc4(id: "pipeline_gcc4", name: "GNU C Compiler"),
-                    clang(id: "pipeline_clang", name: "LLVM/Clang")
-                ],
-                blameDisabled: false,
-                qualityGates: [[threshold: 30, type: 'TOTAL', unstable: true]],
-                healthy: 10, unhealthy: 100, minimumSeverity: 'HIGH',
-                referenceJobName: env.BRANCH_NAME
+                recordIssues(
+                    id: "pipeline",
+                    name: "Entire pipeline results",
+                    enabledForFailure: true,
+                    aggregatingResults : false,
+                    filters: [
+                        excludeFile('lib/.*')
+                    ],
+                    tools: [
+                        gcc4(id: "pipeline_gcc4", name: "GNU C Compiler"),
+                        clang(id: "pipeline_clang", name: "LLVM/Clang")
+                    ],
+                    qualityGates: [[threshold: 30, type: 'TOTAL', unstable: true]],
+                    healthy: 10, unhealthy: 100, minimumSeverity: 'HIGH'
+                )
             }
         }
         success {
             script {
                 utils.updateUpstream(env,'cmdstan')
+                utils.updateUpstream(env,'rstan')
                 utils.mailBuildResults("SUCCESSFUL")
             }
         }

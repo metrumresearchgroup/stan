@@ -5,6 +5,8 @@
 #include <stan/callbacks/logger.hpp>
 #include <stan/services/error_codes.hpp>
 #include <tbb/parallel_invoke.h>
+#include <iomanip>
+#include <sstream>
 
 namespace stan {
 namespace services {
@@ -261,23 +263,19 @@ inline Eigen::Array<double, Eigen::Dynamic, 1> psis_weights(
         llr_weights.coeffRef(idx.coeff(i)) = smoothed.first.coeff(i);
       }
       if (smoothed.second > 0.7) {
-        logger.warn(std::string("Pareto k value (") +
-         std::to_string(smoothed.second) + ") is greater than 0.7."
-         " Importance resampling was not able to improve the approximation,"
-         " which may indicate that the approximation itself is poor.");
+        std::stringstream s;
+        s << "Pareto k value (" << std::setprecision(2) << smoothed.second
+          << ") is greater than 0.7. Importance resampling was not able to "
+          << "improve the approximation, which may indicate that the "
+          << "approximation itself is poor.";
+
+        logger.warn(s.str());
       }
     }
   }
 
   // truncate at max of raw wts (i.e., 0 since max has been subtracted)
-  for (Eigen::Index i = 0; i < llr_weights.size(); ++i) {
-    if (llr_weights.coeff(i) > 0) {
-      llr_weights.coeffRef(i) = 0.0;
-    }
-  }
-  auto max_adj = (llr_weights + max_log_ratio).eval();
-  auto max_adj_exp = max_adj.exp();
-  return max_adj_exp / max_adj_exp.sum();
+  return (llr_weights.array() < 0.0).select(llr_weights, 0.0).exp().eval();
 }
 
 }  // namespace psis

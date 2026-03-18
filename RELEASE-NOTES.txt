@@ -5,6 +5,68 @@ Note: these are the release notes for the stan-dev/stan repository.
 Further changes may arise at the interface level (stan-dev/{rstan,
 pystan, cmdstan}) and math library level (stan-dev/math).
 
+v2.38.0 (13 January 2026)
+======================================================================
+
+ - Allow `min:max` indexing to always succeed if it is an empty selection. (#3362)
+ - Updated scalar templating in the serializer. (#3355)
+ - Removed the uses of `forward_as` from the stan repo and adds `if constexpr` where possible. (#3357)
+ - Updated Pathfinder writer to avoid indexing past vector length. (#3364)
+
+v2.37.0 (2 September 2025)
+======================================================================
+
+ - Fixed a memory leak in `laplace_sample`. (#3324)
+ - Dramatically reduce the memory footprint of Pathfinder when PSIS resampling is disabled. Note that this change involves changes to thread scheduling that may result in the same seed returning draws in a different order when multiple threads are used, but the unordered set of draws should be unchanged. (#3325)
+ - Fixed a missing size check by directing all std::vector assigns through size-aware version. (#3352) 
+ - Implemented serialization and deserializtion for `sum_to_zero` matrix. (#3342)
+ - Fixed stepsize adaption being completely reset when passing `0` for the size of `term_buffer`. (#3346)
+
+v2.36.0 (10 December 2024)
+======================================================================
+
+ - Added de/serialization for the `stochastic_row_matrix` and `stochastic_column_matrix` types. (#3298, #3304)
+ - Added de/serialization for the `sum_to_zero_vector` type. (#3308)
+ - Relaxed restrictions on HMC to allow running when a model has no parameters. (#3071, #3303)
+ - Updated `rvalue()` functions that use `multi_index` to return an Eigen expression of multi indexing instead of eagerly creating a new matrix from the indices. (#3250)
+ - Improved error messages when user-specified initializations fail. (#3291)
+ - Fixed progress output formatting being inconsistent for the non-adaptive samplers. (#3296)
+ - Improved parsing of Stan CSV files to allow for getting MCMC sample from fixed_param and samples with saved warmup draws and to be able to correctly get ADVI sample. (#3311)
+ - Improved parsing of Stan CSV files when they contain nan or infinite values. (#3318)
+ - Added a new `stan::mcmc::chainset` object, exposing split-Rhat, split-ESS and Monte Carlo standard error diagnostics. This replaces the `chains<>` object. (#3312, #3313)
+ - Fixed a header include order issue that caused compilation with `-DSTAN_MODEL_FVAR_VAR` to fail for certain models. (#3294)
+ - Removed support for adding makefile variables in `~/.config/stan/make.local`. Use the `make/local` file in the Stan directory instead. (#3295)
+
+v2.35.0 (3 June 2024)
+======================================================================
+
+ - The algorithms no longer catch `std::exception` unconditionally. The Math library uses `std::domain_error` for recoverable errors, and these are the ones which are caught. (#3259)
+ - Allow laplace sampling without evaluating `log_prob` for each draw. (#3261)
+ - Allow laplace sampling to save the Hessian as a diagnostic output. (#3261)
+ - Stan's RNG usages now uses a type definition `stan::rng_t` rather than hard coding a specific Boost RNG. (#3263)
+ - Switched the pRNG used by default in the services and tests to be `boost::mixmax`. Note that this means seeds from previous versions will lead to different numerical results in this version. (#3264)
+ - Add a new ranked R-hat diagnostic from [Vehtari](https://arxiv.org/abs/1903.08008). (#3266)
+ - Fixed an issue where Pathfinder would sometimes return more draws than requested. (#3279)
+
+v2.34.1 (23 January 2024)
+======================================================================
+
+- Fixed a Windows-specific issue with std::regex in JSON file validation (#3251)
+- Added a missing include of `cstdint` (#3255)
+
+v2.34.0 (16 January 2024)
+======================================================================
+
+ - Resolved an issue in Pathfinder's multithreading which lead to non-reproducible results (#3239)
+ - Improved the human-readability of the output of the JSON writer class (#3227)
+ - Resolved various compiler warnings (#3228, #3234)
+ - Added hooks to adaptive sampler methods to write adapted metric to JSON file. (#3230, #3248)
+ - Changed bfgs and lbfgs's error messaging behavior so that the message is not split between stderr and stdout but is entirely sent to stderr. (#3238)
+ - Fixed a bug in the stan opencl assign tests (#3219)
+ - Updated PSIS to not add back the max and return the unnormalized resample ratios for stability (#3243)
+ - Fixed an issue where trying to compute the potential scale reduction factor on an empty set of draws would lead to a crash (#3246)
+ - Added flags to the Pathfinder service functions for turning off resampling and the calculation of the lp for the approximate draws. (#3249)
+
 v2.33.0 (5 September 2023)
 ======================================================================
 
