@@ -16,6 +16,7 @@ RAPIDJSON ?= lib/rapidjson_1.1.0/
 -include $(MATH)make/compiler_flags
 -include $(MATH)make/dependencies
 -include $(MATH)make/libraries
+-include $(MATH)make/torsten_setup.mk
 include make/doxygen                      # doxygen
 include make/cpplint                      # cpplint
 include make/tests                        # tests
